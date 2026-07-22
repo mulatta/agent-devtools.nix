@@ -1,4 +1,4 @@
-{ formatter, pkgs }:
+{ perSystem, pkgs }:
 
 pkgs.mkShellNoCC {
   packages = [
@@ -8,7 +8,7 @@ pkgs.mkShellNoCC {
     pkgs.git
     pkgs.nix-update
     pkgs.python3
-    formatter
+    perSystem.self.formatter
   ];
 
   shellHook = ''

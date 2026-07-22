@@ -11,11 +11,11 @@
   };
 
   outputs =
-    {
+    inputs@{
       self,
       crane,
       nixpkgs,
-      treefmt-nix,
+      ...
     }:
     let
       inherit (nixpkgs) lib;
@@ -27,6 +27,10 @@
       ];
       eachSystem = lib.genAttrs systems;
 
+      flake = self // {
+        inherit inputs;
+      };
+
       callWith = args: fn: fn (builtins.intersectAttrs (builtins.functionArgs fn) args);
 
       packageNames = builtins.attrNames (
@@ -34,6 +38,15 @@
           name: type: type == "directory" && builtins.pathExists (./packages + "/${name}/default.nix")
         ) (builtins.readDir ./packages)
       );
+
+      moduleNames = builtins.attrNames (
+        lib.filterAttrs (_name: type: type == "directory") (builtins.readDir ./modules)
+      );
+
+      moduleNamesWith =
+        file: lib.filter (name: builtins.pathExists (./modules + "/${name}/${file}")) moduleNames;
+
+      prefixAttrs = prefix: lib.mapAttrs' (name: lib.nameValuePair "${prefix}-${name}");
 
       pkgsFor = eachSystem (system: nixpkgs.legacyPackages.${system});
 
@@ -46,7 +59,12 @@
           packages = lib.genAttrs packageNames (
             name:
             callWith {
-              inherit perSystem pkgs;
+              inherit
+                flake
+                inputs
+                perSystem
+                pkgs
+                ;
               craneLib = crane.mkLib pkgs;
               system = pkgs.stdenv.hostPlatform.system;
             } (import (./packages + "/${name}"))
@@ -62,73 +80,14 @@
 
       packages = eachSystem (system: lib.filterAttrs (_name: available system) allPackages.${system});
 
-      treefmtEval = eachSystem (
-        system:
-        treefmt-nix.lib.evalModule pkgsFor.${system} {
-          projectRootFile = "flake.nix";
-          programs = {
-            actionlint.enable = true;
-            deadnix.enable = true;
-            keep-sorted.enable = true;
-            mypy = {
-              enable = true;
-              directories = {
-                ci = {
-                  directory = ".github/ci";
-                  modules = [ "." ];
-                  options = [ "--strict" ];
-                };
-                omnigraph-updater = {
-                  directory = "packages/omnigraph";
-                  modules = [ "." ];
-                  options = [ "--strict" ];
-                };
-              };
-            };
-            nixfmt.enable = true;
-            ruff-check.enable = true;
-            ruff-format.enable = true;
-            shellcheck = {
-              enable = true;
-              excludes = [ ".envrc" ];
-            };
-            statix.enable = true;
-          };
-          settings.formatter = {
-            mypy-ci = {
-              includes = [ ".github/ci/*.py" ];
-              pipeline = "python";
-              priority = 3;
-            };
-            mypy-omnigraph-updater = {
-              includes = [ "packages/omnigraph/update.py" ];
-              pipeline = "python";
-              priority = 3;
-            };
-            ruff-check = {
-              pipeline = "python";
-              priority = 1;
-            };
-            ruff-format = {
-              pipeline = "python";
-              priority = 2;
-            };
-          };
-        }
-      );
-
-      devShells = eachSystem (
-        system:
-        let
+      devShells = eachSystem (system: {
+        default = callWith {
           pkgs = pkgsFor.${system};
-        in
-        {
-          default = import ./devshell.nix {
-            inherit pkgs;
-            formatter = treefmtEval.${system}.config.build.wrapper;
+          perSystem = {
+            self = allPackages.${system};
           };
-        }
-      );
+        } (import ./devshell.nix);
+      });
     in
     {
       inherit devShells packages;
@@ -139,26 +98,30 @@
         system:
         let
           pkgs = pkgsFor.${system};
-        in
-        {
-          devshell-default = devShells.${system}.default;
-          formatting = treefmtEval.${system}.config.build.check self;
-        }
-        // lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
-          module-omnigraph = import ./modules/omnigraph/check.nix {
-            inherit pkgs self system;
-            inherit (pkgs) lib;
+          args = {
+            inherit
+              lib
+              pkgs
+              self
+              system
+              ;
             nixosSystem = nixpkgs.lib.nixosSystem;
           };
+          importModuleFiles =
+            file:
+            lib.genAttrs (moduleNamesWith file) (name: callWith args (import (./modules + "/${name}/${file}")));
+        in
+        prefixAttrs "pkgs" packages.${system}
+        // prefixAttrs "module" (
+          lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux (importModuleFiles "check.nix")
+        )
+        // prefixAttrs "nixos" (lib.optionalAttrs (system == "x86_64-linux") (importModuleFiles "test.nix"))
+        // {
+          devshell-default = devShells.${system}.default;
+          formatting = allPackages.${system}.formatter.tests.check;
         }
-        // lib.optionalAttrs (system == "x86_64-linux") {
-          nixos-omnigraph = import ./modules/omnigraph/test.nix {
-            inherit pkgs self system;
-          };
-        }
-        // lib.mapAttrs' (name: lib.nameValuePair "package-${name}") packages.${system}
       );
 
-      formatter = eachSystem (system: treefmtEval.${system}.config.build.wrapper);
+      formatter = eachSystem (system: allPackages.${system}.formatter);
     };
 }
