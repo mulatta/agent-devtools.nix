@@ -1,0 +1,69 @@
+diff --git a/lance-linalg-9.0.0-beta.15/src/distance/cosine_u8.rs b/lance-linalg-9.0.0-beta.15/src/distance/cosine_u8.rs
+index b2d06d3..c5ef526 100644
+--- a/lance-linalg-9.0.0-beta.15/src/distance/cosine_u8.rs
++++ b/lance-linalg-9.0.0-beta.15/src/distance/cosine_u8.rs
+@@ -133,0 +134,2 @@ mod x86 {
++    // LLVM < 22 cannot lower these intrinsics during LTO.
++    #[cfg(any())]
+@@ -192,7 +193,0 @@ fn select_backend() -> CosineU8AccumFn {
+-        if is_x86_feature_detected!("avx512f")
+-            && is_x86_feature_detected!("avx512bw")
+-            && is_x86_feature_detected!("avx512vnni")
+-        {
+-            return |a, b| unsafe { x86::cosine_u8_accum_avx512_vnni(a, b) };
+-        }
+-
+@@ -247,7 +241,0 @@ mod tests {
+-            if is_x86_feature_detected!("avx512f")
+-                && is_x86_feature_detected!("avx512bw")
+-                && is_x86_feature_detected!("avx512vnni")
+-            {
+-                let got = unsafe { x86::cosine_u8_accum_avx512_vnni(a, b) };
+-                assert_eq!(got, reference, "avx512_vnni [{case}] n={}", a.len());
+-            }
+diff --git a/lance-linalg-9.0.0-beta.15/src/distance/dot_u8.rs b/lance-linalg-9.0.0-beta.15/src/distance/dot_u8.rs
+index de5522c..1f7523f 100644
+--- a/lance-linalg-9.0.0-beta.15/src/distance/dot_u8.rs
++++ b/lance-linalg-9.0.0-beta.15/src/distance/dot_u8.rs
+@@ -87,0 +88,2 @@ mod x86 {
++    // LLVM < 22 cannot lower these intrinsics during LTO.
++    #[cfg(any())]
+@@ -127,7 +128,0 @@ fn select_backend() -> DotU8Fn {
+-        if is_x86_feature_detected!("avx512f")
+-            && is_x86_feature_detected!("avx512bw")
+-            && is_x86_feature_detected!("avx512vnni")
+-        {
+-            return |a, b| unsafe { x86::dot_u8_avx512_vnni(a, b) };
+-        }
+-
+@@ -173,7 +167,0 @@ mod tests {
+-            if is_x86_feature_detected!("avx512f")
+-                && is_x86_feature_detected!("avx512bw")
+-                && is_x86_feature_detected!("avx512vnni")
+-            {
+-                let got = unsafe { x86::dot_u8_avx512_vnni(a, b) };
+-                assert_eq!(got, reference, "avx512_vnni [{case}] n={}", a.len());
+-            }
+diff --git a/lance-linalg-9.0.0-beta.15/src/distance/l2_u8.rs b/lance-linalg-9.0.0-beta.15/src/distance/l2_u8.rs
+index 1b111f9..229a9e3 100644
+--- a/lance-linalg-9.0.0-beta.15/src/distance/l2_u8.rs
++++ b/lance-linalg-9.0.0-beta.15/src/distance/l2_u8.rs
+@@ -90,0 +91,2 @@ mod x86 {
++    // LLVM < 22 cannot lower these intrinsics during LTO.
++    #[cfg(any())]
+@@ -136,7 +137,0 @@ fn select_backend() -> L2U8Fn {
+-        if is_x86_feature_detected!("avx512f")
+-            && is_x86_feature_detected!("avx512bw")
+-            && is_x86_feature_detected!("avx512vnni")
+-        {
+-            return |a, b| unsafe { x86::l2_u8_avx512_vnni(a, b) };
+-        }
+-
+@@ -182,7 +176,0 @@ mod tests {
+-            if is_x86_feature_detected!("avx512f")
+-                && is_x86_feature_detected!("avx512bw")
+-                && is_x86_feature_detected!("avx512vnni")
+-            {
+-                let got = unsafe { x86::l2_u8_avx512_vnni(a, b) };
+-                assert_eq!(got, reference, "avx512_vnni [{case}] n={}", a.len());
+-            }
