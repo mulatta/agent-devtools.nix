@@ -151,6 +151,11 @@
             nixosSystem = nixpkgs.lib.nixosSystem;
           };
         }
+        // lib.optionalAttrs (system == "x86_64-linux") {
+          nixos-omnigraph = import ./modules/omnigraph/test.nix {
+            inherit pkgs self system;
+          };
+        }
         // lib.mapAttrs' (name: lib.nameValuePair "package-${name}") packages.${system}
       );
 

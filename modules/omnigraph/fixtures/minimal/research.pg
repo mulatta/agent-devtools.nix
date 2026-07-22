@@ -1,0 +1,3 @@
+node Document {
+  title: String
+}
