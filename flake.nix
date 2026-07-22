@@ -133,11 +133,23 @@
     {
       inherit devShells packages;
 
+      nixosModules = import ./modules { inherit self; };
+
       checks = eachSystem (
         system:
+        let
+          pkgs = pkgsFor.${system};
+        in
         {
           devshell-default = devShells.${system}.default;
           formatting = treefmtEval.${system}.config.build.check self;
+        }
+        // lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+          module-omnigraph = import ./modules/omnigraph/check.nix {
+            inherit pkgs self system;
+            inherit (pkgs) lib;
+            nixosSystem = nixpkgs.lib.nixosSystem;
+          };
         }
         // lib.mapAttrs' (name: lib.nameValuePair "package-${name}") packages.${system}
       );
