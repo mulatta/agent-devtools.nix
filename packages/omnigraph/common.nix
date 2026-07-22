@@ -105,6 +105,8 @@ let
           runHook postInstallCheck
         '';
 
+        passthru.skipUpdate = true;
+
         meta = {
           inherit description mainProgram;
           homepage = "https://github.com/ModernRelay/omnigraph";
