@@ -1,0 +1,126 @@
+diff --git a/lance-linalg-9.0.0-beta.15/src/distance/cosine_u8.rs b/lance-linalg-9.0.0-beta.15/src/distance/cosine_u8.rs
+--- a/lance-linalg-9.0.0-beta.15/src/distance/cosine_u8.rs
++++ b/lance-linalg-9.0.0-beta.15/src/distance/cosine_u8.rs
+@@ -131,6 +131,7 @@
+     }
+ 
+     /// AVX-512 VNNI fused cosine: VPDPWSSD for each product, 64 elements/iter.
++    #[cfg(any())]
+     #[target_feature(enable = "avx512f,avx512bw,avx512vnni")]
+     pub unsafe fn cosine_u8_accum_avx512_vnni(a: &[u8], b: &[u8]) -> CosineAccumulators {
+         debug_assert_eq!(a.len(), b.len());
+@@ -189,12 +190,8 @@
+ fn select_backend() -> CosineU8AccumFn {
+     #[cfg(target_arch = "x86_64")]
+     {
+-        if is_x86_feature_detected!("avx512f")
+-            && is_x86_feature_detected!("avx512bw")
+-            && is_x86_feature_detected!("avx512vnni")
+-        {
+-            return |a, b| unsafe { x86::cosine_u8_accum_avx512_vnni(a, b) };
+-        }
++        // nixpkgs rustc with LLVM < 22 cannot lower AVX512 VNNI intrinsics during LTO.
++        // Keep AVX2/scalar fallback until rustc uses an LLVM with the upstream fix.
+ 
+         if is_x86_feature_detected!("avx2") {
+             return |a, b| unsafe { x86::cosine_u8_accum_avx2(a, b) };
+@@ -244,13 +241,8 @@
+                 assert_eq!(got, reference, "avx2 [{case}] n={}", a.len());
+             }
+ 
+-            if is_x86_feature_detected!("avx512f")
+-                && is_x86_feature_detected!("avx512bw")
+-                && is_x86_feature_detected!("avx512vnni")
+-            {
+-                let got = unsafe { x86::cosine_u8_accum_avx512_vnni(a, b) };
+-                assert_eq!(got, reference, "avx512_vnni [{case}] n={}", a.len());
+-            }
++            // nixpkgs rustc with LLVM < 22 cannot lower AVX512 VNNI intrinsics during LTO.
++            // Keep AVX2/scalar fallback until rustc uses an LLVM with the upstream fix.
+         }
+ 
+         let dispatched = cosine_u8_accum(a, b);
+diff --git a/lance-linalg-9.0.0-beta.15/src/distance/dot_u8.rs b/lance-linalg-9.0.0-beta.15/src/distance/dot_u8.rs
+--- a/lance-linalg-9.0.0-beta.15/src/distance/dot_u8.rs
++++ b/lance-linalg-9.0.0-beta.15/src/distance/dot_u8.rs
+@@ -85,6 +85,7 @@
+     /// VPDPBUSD expects (unsigned, signed) operands but SQ stores u8×u8.
+     /// We XOR b with 0x80 to map it to i8, then correct: result + 128·Σa.
+     /// The Σa term (VPSADBW, port 5) runs in parallel with VPDPBUSD (port 0).
++    #[cfg(any())]
+     #[target_feature(enable = "avx512f,avx512bw,avx512vnni")]
+     pub unsafe fn dot_u8_avx512_vnni(a: &[u8], b: &[u8]) -> u32 {
+         debug_assert_eq!(a.len(), b.len());
+@@ -124,12 +125,8 @@
+ fn select_backend() -> DotU8Fn {
+     #[cfg(target_arch = "x86_64")]
+     {
+-        if is_x86_feature_detected!("avx512f")
+-            && is_x86_feature_detected!("avx512bw")
+-            && is_x86_feature_detected!("avx512vnni")
+-        {
+-            return |a, b| unsafe { x86::dot_u8_avx512_vnni(a, b) };
+-        }
++        // nixpkgs rustc with LLVM < 22 cannot lower AVX512 VNNI intrinsics during LTO.
++        // Keep AVX2/scalar fallback until rustc uses an LLVM with the upstream fix.
+ 
+         if is_x86_feature_detected!("avx2") {
+             return |a, b| unsafe { x86::dot_u8_avx2(a, b) };
+@@ -170,13 +167,8 @@
+                 assert_eq!(got, reference, "avx2 [{case}] n={}", a.len());
+             }
+ 
+-            if is_x86_feature_detected!("avx512f")
+-                && is_x86_feature_detected!("avx512bw")
+-                && is_x86_feature_detected!("avx512vnni")
+-            {
+-                let got = unsafe { x86::dot_u8_avx512_vnni(a, b) };
+-                assert_eq!(got, reference, "avx512_vnni [{case}] n={}", a.len());
+-            }
++            // nixpkgs rustc with LLVM < 22 cannot lower AVX512 VNNI intrinsics during LTO.
++            // Keep AVX2/scalar fallback until rustc uses an LLVM with the upstream fix.
+         }
+ 
+         assert_eq!(dot_u8(a, b), reference, "dispatch [{case}] n={}", a.len());
+diff --git a/lance-linalg-9.0.0-beta.15/src/distance/l2_u8.rs b/lance-linalg-9.0.0-beta.15/src/distance/l2_u8.rs
+--- a/lance-linalg-9.0.0-beta.15/src/distance/l2_u8.rs
++++ b/lance-linalg-9.0.0-beta.15/src/distance/l2_u8.rs
+@@ -88,6 +88,7 @@
+ 
+     /// AVX-512 VNNI path: abs diff + VPDPWSSD for fused square-accumulate.
+     /// 64 elements/iter.
++    #[cfg(any())]
+     #[target_feature(enable = "avx512f,avx512bw,avx512vnni")]
+     pub unsafe fn l2_u8_avx512_vnni(a: &[u8], b: &[u8]) -> u32 {
+         debug_assert_eq!(a.len(), b.len());
+@@ -133,12 +134,8 @@
+ fn select_backend() -> L2U8Fn {
+     #[cfg(target_arch = "x86_64")]
+     {
+-        if is_x86_feature_detected!("avx512f")
+-            && is_x86_feature_detected!("avx512bw")
+-            && is_x86_feature_detected!("avx512vnni")
+-        {
+-            return |a, b| unsafe { x86::l2_u8_avx512_vnni(a, b) };
+-        }
++        // nixpkgs rustc with LLVM < 22 cannot lower AVX512 VNNI intrinsics during LTO.
++        // Keep AVX2/scalar fallback until rustc uses an LLVM with the upstream fix.
+ 
+         if is_x86_feature_detected!("avx2") {
+             return |a, b| unsafe { x86::l2_u8_avx2(a, b) };
+@@ -179,13 +176,8 @@
+                 assert_eq!(got, reference, "avx2 [{case}] n={}", a.len());
+             }
+ 
+-            if is_x86_feature_detected!("avx512f")
+-                && is_x86_feature_detected!("avx512bw")
+-                && is_x86_feature_detected!("avx512vnni")
+-            {
+-                let got = unsafe { x86::l2_u8_avx512_vnni(a, b) };
+-                assert_eq!(got, reference, "avx512_vnni [{case}] n={}", a.len());
+-            }
++            // nixpkgs rustc with LLVM < 22 cannot lower AVX512 VNNI intrinsics during LTO.
++            // Keep AVX2/scalar fallback until rustc uses an LLVM with the upstream fix.
+         }
+ 
+         assert_eq!(l2_u8(a, b), reference, "dispatch [{case}] n={}", a.len());

@@ -3,6 +3,7 @@
 
   inputs = {
     # keep-sorted start
+    crane.url = "github:ipetkov/crane";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
     treefmt-nix.url = "github:numtide/treefmt-nix";
@@ -12,10 +13,13 @@
   outputs =
     {
       self,
+      crane,
       nixpkgs,
       treefmt-nix,
     }:
     let
+      inherit (nixpkgs) lib;
+
       systems = [
         "x86_64-linux"
         "aarch64-linux"
@@ -24,7 +28,7 @@
 
       eachSystem =
         f:
-        nixpkgs.lib.genAttrs systems (
+        lib.genAttrs systems (
           system:
           f {
             inherit system;
@@ -44,13 +48,24 @@
           };
         }
       );
+
+      packages = eachSystem (
+        { pkgs, ... }:
+        import ./packages {
+          inherit pkgs;
+          craneLib = crane.mkLib pkgs;
+        }
+      );
     in
     {
+      inherit packages;
+
       checks = eachSystem (
         { system, ... }:
         {
           formatting = treefmtEval.${system}.config.build.check self;
         }
+        // lib.mapAttrs' (name: lib.nameValuePair "package-${name}") packages.${system}
       );
 
       formatter = eachSystem ({ system, ... }: treefmtEval.${system}.config.build.wrapper);
