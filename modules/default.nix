@@ -1,0 +1,3 @@
+{
+  omnigraph = ./omnigraph;
+}

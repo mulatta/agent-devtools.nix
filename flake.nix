@@ -60,10 +60,18 @@
     {
       inherit packages;
 
+      nixosModules = import ./modules;
+
       checks = eachSystem (
-        { system, ... }:
+        { system, pkgs, ... }:
         {
           formatting = treefmtEval.${system}.config.build.check self;
+        }
+        // lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+          module-omnigraph = import ./modules/omnigraph/check.nix {
+            inputs = { inherit nixpkgs; };
+            inherit pkgs self system;
+          };
         }
         // lib.mapAttrs' (name: lib.nameValuePair "package-${name}") packages.${system}
       );
