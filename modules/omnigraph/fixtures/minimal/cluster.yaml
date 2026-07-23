@@ -1,0 +1,6 @@
+version: 1
+metadata:
+  name: nixos-test
+graphs:
+  research:
+    schema: research.pg

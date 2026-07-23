@@ -1,0 +1,97 @@
+name: Update Packages
+
+on:
+  schedule:
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: "Packages to update, separated by spaces; empty selects all"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-slim
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      has-updates: ${{ steps.matrix.outputs.has-updates }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
+      - name: Discover updateable packages
+        id: matrix
+        env:
+          PACKAGES: ${{ inputs.packages }}
+        run: .github/ci/discovery.py
+
+  update:
+    needs: discover
+    if: needs.discover.outputs.has-updates == 'true'
+    runs-on: ubuntu-slim
+    permissions:
+      contents: write
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.discover.outputs.matrix) }}
+    env:
+      APP_ID: ${{ secrets.APP_ID }}
+      APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+      BASE_BRANCH: ${{ github.event.repository.default_branch }}
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        if: env.APP_ID != '' && env.APP_PRIVATE_KEY != ''
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ env.APP_ID }}
+          private-key: ${{ env.APP_PRIVATE_KEY }}
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token || github.token }}
+      - uses: cachix/install-nix-action@v31
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Prepare update branch
+        env:
+          PACKAGE: ${{ matrix.name }}
+        run: |
+          branch="update/$PACKAGE"
+          git fetch origin "$BASE_BRANCH"
+          if git fetch origin "$branch"; then
+            git checkout -B "$branch" "origin/$branch"
+            if ! git rebase "origin/$BASE_BRANCH"; then
+              git rebase --abort
+              git reset --hard "origin/$BASE_BRANCH"
+            fi
+          else
+            git checkout -B "$branch" "origin/$BASE_BRANCH"
+          fi
+      - name: Update package
+        id: update
+        env:
+          PACKAGE: ${{ matrix.name }}
+        run: nix develop -c .github/ci/update.py "$PACKAGE"
+      - name: Create pull request
+        if: steps.update.outputs.updated == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          PACKAGE: ${{ matrix.name }}
+          CURRENT_VERSION: ${{ matrix.current_version }}
+          NEW_VERSION: ${{ steps.update.outputs.new_version }}
+          CHANGELOG_URL: ${{ steps.update.outputs.changelog }}
+          AUTO_MERGE: "false"
+          PR_LABELS: ""
+        run: |
+          nix develop -c .github/ci/create_pr.py \
+            "$PACKAGE" \
+            "$CURRENT_VERSION" \
+            "$NEW_VERSION"
