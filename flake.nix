@@ -1,5 +1,5 @@
 {
-  description = "Nix packages and modules for RAG integration";
+  description = "Nix packages and modules for agent development tools";
 
   inputs = {
     # keep-sorted start
