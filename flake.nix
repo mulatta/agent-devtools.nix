@@ -1,5 +1,5 @@
 {
-  description = "Nix packages and modules for agent development tools";
+  description = "Nix packages for agent development tools";
 
   inputs = {
     # keep-sorted start
@@ -33,20 +33,13 @@
 
       callWith = args: fn: fn (builtins.intersectAttrs (builtins.functionArgs fn) args);
 
+      prefixAttrs = prefix: lib.mapAttrs' (name: lib.nameValuePair "${prefix}-${name}");
+
       packageNames = builtins.attrNames (
         lib.filterAttrs (
           name: type: type == "directory" && builtins.pathExists (./packages + "/${name}/default.nix")
         ) (builtins.readDir ./packages)
       );
-
-      moduleNames = builtins.attrNames (
-        lib.filterAttrs (_name: type: type == "directory") (builtins.readDir ./modules)
-      );
-
-      moduleNamesWith =
-        file: lib.filter (name: builtins.pathExists (./modules + "/${name}/${file}")) moduleNames;
-
-      prefixAttrs = prefix: lib.mapAttrs' (name: lib.nameValuePair "${prefix}-${name}");
 
       pkgsFor = eachSystem (system: nixpkgs.legacyPackages.${system});
 
@@ -92,30 +85,9 @@
     {
       inherit devShells packages;
 
-      nixosModules = import ./modules { inherit self; };
-
       checks = eachSystem (
         system:
-        let
-          pkgs = pkgsFor.${system};
-          args = {
-            inherit
-              lib
-              pkgs
-              self
-              system
-              ;
-            nixosSystem = nixpkgs.lib.nixosSystem;
-          };
-          importModuleFiles =
-            file:
-            lib.genAttrs (moduleNamesWith file) (name: callWith args (import (./modules + "/${name}/${file}")));
-        in
         prefixAttrs "pkgs" packages.${system}
-        // prefixAttrs "module" (
-          lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux (importModuleFiles "check.nix")
-        )
-        // prefixAttrs "nixos" (lib.optionalAttrs (system == "x86_64-linux") (importModuleFiles "test.nix"))
         // {
           devshell-default = devShells.${system}.default;
           formatting = allPackages.${system}.formatter.tests.check;
