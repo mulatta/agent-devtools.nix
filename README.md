@@ -14,30 +14,6 @@ Build a package with:
 nix build .#omnigraph
 ```
 
-## NixOS modules
-
-The flake exports `nixosModules.omnigraph` for running the Omnigraph server.
-
-```nix
-{
-  inputs.agent-devtools.url = "github:mulatta/agent-devtools.nix";
-
-  outputs = { agent-devtools, nixpkgs, ... }: {
-    nixosConfigurations.example = nixpkgs.lib.nixosSystem {
-      modules = [
-        agent-devtools.nixosModules.omnigraph
-        {
-          services.omnigraph = {
-            enable = true;
-            cluster = "/var/lib/omnigraph/cluster";
-          };
-        }
-      ];
-    };
-  };
-}
-```
-
 ## Development
 
 ```console
