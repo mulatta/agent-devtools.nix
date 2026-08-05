@@ -4,7 +4,6 @@
   programs = {
     actionlint.enable = true;
     deadnix.enable = true;
-    keep-sorted.enable = true;
     mypy = {
       enable = true;
       directories = {
