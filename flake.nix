@@ -1,6 +1,8 @@
 {
   description = "Nix packages for agent development tools";
 
+  nixConfig.allow-import-from-derivation = false;
+
   inputs = {
     crane.url = "github:ipetkov/crane";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
