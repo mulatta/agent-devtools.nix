@@ -17,7 +17,7 @@ pkgs.symlinkJoin {
   passthru = {
     cli = omnigraph-cli;
     server = omnigraph-server;
-    inherit (omnigraph-cli) src version;
+    inherit (omnigraph-cli) src version cargoDeps;
   };
   meta = {
     description = "Lakehouse graph database for context assembly and multi-agent coordination";
